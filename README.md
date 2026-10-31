@@ -1,89 +1,111 @@
-# AI4EO: Shift-Aware Reservoir Monitoring and Forecasting Agent
+# AI4EO: Shift-Aware Flood Mapping Agent for India
 
-> **Status:** In progress. Planning and data pipeline setup.
+> **Status:** In progress. Planning and Stage 1 setup.
 
-A side project on AI for Earth Observation: an end-to-end system that monitors Indian reservoirs from satellite data, forecasts their storage, and explains the results through a RAG-based agent. The central question is how well these models **transfer across hydroclimatic regions, years, and sensors**.
+A side project on AI for Earth Observation. Stage 1 builds an end-to-end agent (RAG, tool calling, evaluation) that maps floods from Sentinel-1/2 and explains the result with cited sources. Stage 2 improves the segmenter's robustness under domain shift using representation learning and generative adaptation, and measures whether each technique actually helps.
 
 ## Research question
 
-> How well do water-monitoring and forecasting models trained on one Indian hydroclimatic region transfer to others, and can an agent that detects domain shift and retrieves context make the system more reliable?
+> How much do flood-mapping models degrade when moved from benchmark regions to Indian flood events, and which adaptation techniques (DINO features, contrastive alignment, image translation) recover the most, at what cost, and can an agent use shift awareness to choose the right pipeline?
 
 ## Pipeline
 
 ```
-Sentinel-1/2 imagery -> water segmentation -> surface-area time series
-                                                    |
-        altimetry (ICESat-2 / SWOT) + rainfall ---> forecasting ladder
-                                                    |
-              shift detector -> RAG agent (CWC/IMD reports) -> cited, uncertainty-aware report
+Query (area, date) -> STAC search -> cloud check -> choose SAR or optical
+                                                      |
+              segmenter (+ Stage 2 adaptation) -> flood mask
+                                                      |
+        shift score -> reliability flag -> RAG (NDMA/IMD/CWC/ReliefWeb)
+                                                      |
+                          cited, uncertainty-aware flood report
 ```
 
-## Objectives
+## Stage 1: RAG, agents, and evaluation (about 5 weeks)
 
-1. **Vision:** build a water-body segmentation model (Sentinel-1/2) that produces reservoir surface-area time series.
-2. **Forecasting:** compare a ladder of forecasters: seasonal naive, SARIMA/ETS, LightGBM, deep models (LSTM/TFT), and foundation models (Chronos, TimesFM).
-3. **Domain shift:** quantify performance drops across basins, years, and sensors, then test adaptation methods.
-4. **RAG agent:** build a tool-calling agent that retrieves CWC/IMD documents, runs the models, flags unreliable predictions under shift, and writes cited reports.
-5. **Deployment:** serve with FastAPI and a simple UI, reproducible via Docker.
+**Goal:** a working, demo-ready agent built around a baseline segmenter treated as a black box.
+
+- [ ] Reproduce a published flood-segmentation baseline on Sen1Floods11 (U-Net and/or Prithvi); record the reported vs. reproduced IoU
+- [ ] Tools: STAC imagery search, cloud-cover check, run segmenter, simple shift score
+- [ ] RAG pipeline: chunking, embeddings, hybrid (BM25 + vector) search, reranking, region/date metadata filters
+- [ ] Agent: tool-calling (LangGraph or similar) with a "reliable / unreliable" flag and cited summaries
+- [ ] **Evaluation harness:** 30-50 hand-written questions on Indian flood events with known answers and sources
+- [ ] FastAPI backend, Streamlit/Gradio UI, Dockerfile
+
+**Done when:** a question about an Indian flood event returns a mask, a reliability flag, and a cited answer, with a measured evaluation score.
+
+## Stage 2: representation learning and generative adaptation (about 6 weeks)
+
+**Goal:** improve robustness under shift and quantify what each technique buys.
+
+| Order | Technique | Role |
+|---|---|---|
+| 1 | **DINO** (frozen, LoRA, optional continued pretraining) | Backbone comparison, label-efficiency curve, better shift detector |
+| 2 | **Contrastive SAR-optical alignment** | Sensor-invariant features |
+| 3 | **pix2pix, then CycleGAN / CUT** | Image-translation baselines |
+| 4 | **Diffusion-based translation** (LoRA fine-tune of a pretrained model) | Stretch method |
+
+DINO is self-distillation rather than strictly contrastive; it is reported separately in the write-up.
+
+**Shared evaluation for every method**
+- Flood IoU and boundary IoU, in-distribution and on Indian events
+- Share of the shift-induced drop each method recovers
+- Hallucination check on translated images (false or missing water near shorelines)
+- Training time, inference time, and GPU memory
+
+**Integration:** each method that works becomes an agent tool or routing option (SAR directly, translate then segment, or optical), and the Stage 1 harness measures its effect on end-to-end agent quality.
+
+**Cut order if time runs short:** diffusion first, then CycleGAN/CUT. DINO plus one contrastive method with a clean shift result is already a solid section.
 
 ## Shift experiments
 
-| Shift type | Setup |
+| Shift | Setup |
 |---|---|
-| **Spatial (basin)** | Train on Cauvery + Krishna, test on Godavari/Mahanadi (mild shift), then Himalayan reservoirs such as Bhakra and Tehri (strong shift) |
-| **Temporal** | Train on normal monsoon years, test on a deficit year (verify rainfall departures first) |
-| **Sensor / mission** | Sentinel-2 to Sentinel-1; ICESat-2 to SWOT |
+| **Spatial** | Benchmark regions to Indian events (e.g., Assam, Bihar, Kerala 2018, Chennai 2015) |
+| **Sensor** | Optical to SAR, and SAR translated to optical-like |
+| **Temporal (optional)** | Different seasons or events within the same region |
 
-Starting reservoirs: KRS, Kabini, Hemavathi (Cauvery).
+Ground truth for Indian events is the hard part. Check Copernicus EMS and ISRO/NRSC inundation products early, and confirm licences.
 
-## Learning goals
+## Hypotheses (to test, not claims)
 
-- Fine-tune a geospatial foundation model (LoRA/PEFT)
-- Build and evaluate RAG (hybrid search, reranking, faithfulness metrics)
-- Build tool-using agents (e.g., LangGraph)
-- Rigorous time-series backtesting and uncertainty calibration
-- Ship a complete system, not just notebooks
+- Foundation-model features (DINO/Prithvi) degrade less under shift than a supervised U-Net trained from scratch.
+- Translation helps mainly when optical imagery is cloud-obscured, and may hurt shoreline accuracy.
+- A shift score can flag unreliable predictions well enough to improve agent trustworthiness.
 
 ## Success criteria
 
-- [ ] Working pipeline from imagery to forecast to agent report
-- [ ] Rolling-origin backtests with prediction intervals for every forecaster
-- [ ] Measured shift results for basin, temporal, and sensor shifts
+- [ ] Reproduced baseline with a documented gap to the published number
+- [ ] Working agent with measured RAG faithfulness, tool-call accuracy, and correct refusal rate
+- [ ] Shift results for every Stage 2 method on a shared protocol
 - [ ] Public demo (live or recorded) and Docker setup
 - [ ] Short write-up including negative findings
 
-Hypotheses to test, not claims: for example, whether foundation models degrade less than SARIMA under Himalayan shift, and whether an agent-based reliability check improves trust in forecasts.
+## Planned data and corpus (verify access and licences)
 
-## Scope
-
-The core deliverable is the **pipeline plus the shift evaluation**. The agent and additional adaptation methods are layered on top, so the project still yields a solid benchmark if time runs short.
-
-## Roadmap
-
-- [ ] **Weeks 1-2:** data pipeline (Earth Engine/STAC), NDWI baseline mask, first area series
-- [ ] **Weeks 3-4:** forecasting ladder and backtesting
-- [ ] **Weeks 5-6:** domain shift experiments and adaptation
-- [ ] **Weeks 7-8:** RAG corpus and agent with tools
-- [ ] **Weeks 9-10:** evaluation, UI, deployment, write-up
-
-## Planned data sources
-
-- **Imagery:** Sentinel-1/2 (Earth Engine or Planetary Computer)
-- **Reservoir storage/levels:** India-WRIS, CWC weekly bulletins (check terms of use)
-- **Reservoir geometry:** GRanD, GeoDAR, Global Surface Water
-- **Altimetry:** ICESat-2, SWOT, Sentinel-3
-- **Covariates:** CHIRPS/IMD rainfall, ERA5, MODIS snow cover (Himalayan targets)
+- **Imagery and labels:** Sen1Floods11, Sentinel-1/2 via STAC (Planetary Computer or Earth Engine)
+- **Foundation models:** Prithvi-EO, DINO/DINOv2/DINOv3 variants (check current model zoo and licences)
+- **RAG corpus:** NDMA guidelines, IMD/CWC bulletins, ISRO/NRSC and Bhuvan reports, ReliefWeb situation reports, Copernicus EMS reports, SAR flood-mapping papers
 
 ## Repo structure (planned)
 
 ```
 data/          # gitignored, with download scripts
 notebooks/     # exploration only
-src/           # segmentation, timeseries, shift, rag, agent
+src/
+  segmentation/
+  adaptation/  # dino, contrastive, translation
+  shift/       # shift scores and detectors
+  rag/
+  agent/
+  eval/        # IoU, boundary IoU, RAG and agent metrics
 configs/
 app/           # FastAPI + Streamlit
 docs/          # results, figures, decisions log
 ```
+
+## Working notes
+
+Keep `docs/decisions.md` as a running log of choices and negative results; it becomes the write-up. Commit small and often, never commit data or keys.
 
 ## License and citation
 
