@@ -1,0 +1,9 @@
+# Copy to configs/events.yaml and fill in. Leave nothing invented:
+# pick events from your own reading, then let scripts/check_events.py test them.
+swot_short_name: null   # look up the current SWOT river product short name on Earthdata Search
+events:
+  - name: null          # e.g. a short label for the event
+    bbox: null          # [west, south, east, north] around the flood reach
+    start: null         # YYYY-MM-DD, flood window start
+    end: null           # YYYY-MM-DD, flood window end
+    mask_only: false    # true for events before ICESat-2 / SWOT (no altimetry expected)
