@@ -3,14 +3,18 @@ import unittest
 from ai4eo.schemas import Verdict
 from ai4eo.tools.consistency import altimetry_consistency
 
-BASE = dict(
-    datum_offset_m=0.0,
-    dem_sigma_m=1.0,
-    altimetry_sigma_m=0.1,
-    days_gap=0.0,
-    max_gap_days=10.0,
-    stage_rate_m_per_day=0.5,
-)
+# Synthetic test fixtures only. These are NOT real product uncertainties; the real
+# values come from product specs and are logged in docs/decisions.md.
+BASE = {
+    "datum_offset_m": 0.0,
+    "dem_sigma_m": 1.0,
+    "altimetry_sigma_m": 0.1,
+    "days_gap": 0.0,
+    "max_gap_days": 10.0,
+    "stage_rate_m_per_day": 0.5,
+    "k": 2.0,
+    "min_points": 10,
+}
 
 
 def run(elev, alt, **over):
@@ -77,6 +81,12 @@ class ConsistencyTests(unittest.TestCase):
             run([38.0] * 20, 38.0, dem_sigma_m=-1.0)
         with self.assertRaises(ValueError):
             run([38.0] * 20, 38.0, k=0.0)
+
+    def test_no_default_for_k_or_min_points(self):
+        for name in ("k", "min_points"):
+            args = {key: val for key, val in BASE.items() if key != name}
+            with self.assertRaises(TypeError):
+                altimetry_consistency([38.0] * 20, 38.0, **args)
 
 
 if __name__ == "__main__":

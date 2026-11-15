@@ -27,13 +27,17 @@ def altimetry_consistency(
     days_gap: float | None,
     max_gap_days: float,
     stage_rate_m_per_day: float,
-    k: float = 2.0,
-    min_points: int = 10,
+    k: float,
+    min_points: int,
 ) -> ConsistencyResult:
     """Compare DEM elevations along the mask boundary with an altimetry height.
 
     datum_offset_m is added to the DEM heights to express them in the altimetry
     datum (for example a geoid-to-ellipsoid offset). Compute it explicitly.
+
+    k (coverage factor on the tolerance) and min_points (fewest valid boundary samples
+    accepted) have no defaults: both change the verdict, so choose them deliberately
+    and record the value and reason in docs/decisions.md.
 
     The tolerance is k * sqrt(dem_sigma^2 + altimetry_sigma^2 + (rate * gap)^2),
     where the last term allows for the river stage changing between the flood

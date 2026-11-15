@@ -61,12 +61,12 @@ def main(path: str = "configs/events.yaml") -> int:
             continue
         try:
             n1, n2, cloud = stac_counts(ev["bbox"], ev["start"], ev["end"])
-        except Exception as exc:  # report and continue; network or collection issues
+        except Exception as exc:  # noqa: BLE001  one-off script: any STAC/network error is reported, not fatal
             n1 = n2 = cloud = None
             print(f"  STAC error for {ev['name']}: {exc}")
         try:
             ice, swot = altimetry_counts(ev["bbox"], ev["start"], ev["end"], swot_name)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001  same reasoning: report and continue
             ice = swot = None
             print(f"  Earthdata error for {ev['name']}: {exc}")
         print(f"{ev['name']:24} {n1!s:>4} {n2!s:>4} {cloud!s:>10} {ice!s:>6} {swot!s:>6}")

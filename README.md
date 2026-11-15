@@ -7,7 +7,7 @@
 
 A two-stage project on AI for Earth Observation.
 
-- **Stage 1 (portfolio):** a multi-agent workflow (LangGraph, LangChain, RAG) that maps floods from Sentinel-1/2, cross-checks the result against satellite-altimetry water-surface height (ICESat-2, SWOT) where a pass exists, and returns a cited report with a **reliable / unreliable** flag. It refuses to answer when it has neither usable imagery nor any sources, omits claims it cannot source, and marks results as unverified when no altimetry pass is available.
+- **Stage 1 (portfolio):** a multi-agent workflow (LangGraph, LangChain, RAG) that maps floods from Sentinel-1/2, cross-checks the result against satellite-altimetry water-surface height (ICESat-2, SWOT) where a pass exists, and returns a cited report with a **reliable / unreliable / unverified** flag. It refuses to answer when it has neither usable imagery nor any sources, omits claims it cannot source, and never flags a result reliable without a physical check (no altimetry pass means unverified).
 - **Stage 2 (research):** measures how flood-mapping models degrade on Indian events and tests whether self-supervised features, contrastive alignment, and generative image translation recover the loss. Methods that help become agent tools.
 
 ## Contents
